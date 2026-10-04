@@ -1,6 +1,6 @@
 {
-  "name": "Mis Finanzas",
-  "short_name": "Mis Finanzas",
+  "name": "Versión Finanzas",
+  "short_name": "Versión Finanzas",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
