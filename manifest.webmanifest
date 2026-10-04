@@ -1,6 +1,6 @@
 {
-  "name": "Más allá de la imagen · Finanzas",
-  "short_name": "Más allá Finanzas",
+  "name": "Mis Finanzas",
+  "short_name": "Mis Finanzas",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
