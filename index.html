@@ -137,10 +137,7 @@ body{background:linear-gradient(180deg,#fff 0,#fffafd 55%,#f6fcff 100%)}
 <button class="fab" aria-label="Agregar movimiento" onclick="show('move',1)">+</button><nav class="bottomnav"><button class="on" onclick="show('home',0)">⌂<br>Inicio</button><button onclick="show('move',1)">＋<br>Ingresar</button><button onclick="show('budget',2)">◎<br>Presupuesto</button><button onclick="show('goals',3)">♡<br>Metas</button></nav>
 </div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-const SUPABASE_URL = 'https://mgfnfeqrcbunnerzcvl.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_WAUfSeuKdjzZt5weuJc8-g_Fi0OEJkT';
-</script>
+<script src="supabase-config.js"></script>
 const cats=['Hogar','Comida','Transporte','Deudas','Imagen/Ropa','Gustitos','Crecimiento','Salud','Entretenimiento','Otros'], colors=['#65b9e8','#f29bc2','#83d6e8','#b8c5e3','#ef8db9','#f6bdd4','#57bde0','#d9b6df','#a99ce0','#a8dcef'];
 const monthNames=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const defaultMonth=()=>({tx:[],budgets:Object.fromEntries(cats.map(c=>[c,0])),goals:[]});
