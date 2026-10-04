@@ -28,11 +28,11 @@ button{border:0;border-radius:14px;padding:13px;font-family:'DM Sans',Arial,sans
 @media(max-width:899px){
   /* Mobile: separa la marca del contenido para evitar un bloque monocromático */
   header{background:#fff!important;border-bottom:0!important;padding:0!important}
-  header .brand{padding:22px 17px 19px;background:#0d0d10;color:#fff;border-bottom:4px solid #e66aa7}
-  header .brand span{color:#75d8ef;margin-top:10px;font-weight:800}
-  header .tophead{padding:20px 16px 18px;background:linear-gradient(135deg,#fff 0%,#fff4f9 48%,#e4f8fd 100%)}
+  header .brand{position:relative;overflow:hidden;padding:24px 17px 22px;background:radial-gradient(circle at 54% 65%,rgba(255,0,111,.30) 0%,rgba(255,0,111,.10) 26%,transparent 58%),#050507;color:#fff;border-bottom:1px solid #ff0a70;text-shadow:0 1px 0 #000}
+  header .brand span{color:#fff;margin-top:12px;font-weight:800;letter-spacing:3px;text-shadow:none}header .brand::after{content:"ALLÁ";position:absolute;right:-5px;bottom:-19px;font-family:'Playfair Display',Georgia,serif;font-size:70px;font-weight:700;line-height:1;color:#ff0871;opacity:.23;text-shadow:0 0 10px #ff0871,0 0 28px #ff0871;pointer-events:none}header .brand::before{content:"✦";position:absolute;right:18px;top:13px;color:#70dcf3;font-family:'DM Sans',sans-serif;font-size:18px;text-shadow:0 0 12px #70dcf3}
+  header .tophead{padding:20px 16px 18px;background:linear-gradient(135deg,#fff 0%,#fff6fa 55%,#e8f9fd 100%);border-bottom:1px solid #dff3f8}
   header .hello{color:#17151b;margin-top:0}
-  header .strap{color:#b53e79;font-weight:800}
+  header .strap{color:#d6005f;font-weight:800}
   header .quote{background:#fff;border:1px solid #f0b2cf;box-shadow:0 8px 22px rgba(31,20,28,.06)}
 
   .mobilecredit{display:block;text-align:center;font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:700;font-size:13px;padding:24px 8px 8px;color:#17151b}
