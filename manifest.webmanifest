@@ -1,0 +1,9 @@
+{
+  "name": "Más allá de la imagen · Finanzas",
+  "short_name": "Más allá Finanzas",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#d95b99",
+  "description": "Control financiero mensual creado por Dilmara Jimenez"
+}
