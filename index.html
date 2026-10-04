@@ -23,6 +23,12 @@ button{border:0;border-radius:14px;padding:13px;font-weight:900;cursor:pointer}.
 }
 
 @media(max-width:899px){
+  :root{--pink:#e66aa7;--pink2:#ffd6e9;--blue:#64cce8;--blue2:#d6f5ff}
+  header{background:linear-gradient(125deg,#fff 0%,#ffc3dc 16%,#e25c9c 57%,#67cfe9 100%);border-bottom:2px solid #5ec9e7}
+  .primary{background:linear-gradient(100deg,#dc5b9a,#f39ac4)}
+  .card{border-color:#e9a2c5}.card.blue{border-color:#75cfe7}.card.pink{border-color:#e47bac}
+  .bottomnav{border-top:2px solid #e06ba2}.bottomnav button.on{color:#d64f91;font-weight:900}
+
   header{padding:22px 16px 18px}
   .hello{font-size:31px;line-height:1.05}
   .strap{font-size:10px;letter-spacing:2px}
@@ -45,7 +51,7 @@ button{border:0;border-radius:14px;padding:13px;font-weight:900;cursor:pointer}.
 @media(max-width:370px){
   .grid4{grid-template-columns:1fr}
 }
-</style></head><body><div class="app">
+</style><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#d95b99"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Más allá Finanzas"></head><body><div class="app">
 <aside class="sidebar"><div class="sidebrand">MÁS ALLÁ<br>DE LA IMAGEN<br><small>VERSIÓN FINANZAS</small></div>
 <button class="sidebtn on" onclick="show('home',0)">⌂ &nbsp; Inicio</button><button class="sidebtn" onclick="show('move',1)">▣ &nbsp; Mis Gastos</button><button class="sidebtn" onclick="show('budget',2)">◎ &nbsp; Presupuesto</button><button class="sidebtn" onclick="show('goals',3)">♡ &nbsp; Ahorros y Metas</button><div class="sidequote" style="font-size:15px"><b>Creado por<br>Dilmara Jimenez ♡</b></div></aside>
 <div class="workspace">
@@ -115,5 +121,5 @@ let gh=s.goals.length?s.goals.map(g=>`<div class="card goal"><div class="goalhea
 function addTx(){let a=Number($('amount').value),d=$('desc').value.trim();if(!d||a<=0)return alert('Escribe una descripción y un monto.');s.tx.push({kind:$('kind').value,desc:d,amount:a,category:$('category').value,decision:$('decision').value});save();$('desc').value='';$('amount').value='';render();show('home',0)}
 function budget(c,v){s.budgets[c]=Math.max(0,Number(v)||0);save();render()}function addGoal(){let n=$('goalName').value.trim(),t=Number($('goalTarget').value),now=Number($('goalNow').value)||0;if(!n||t<=0)return alert('Completa el nombre y monto de la meta.');s.goals.push({name:n,target:t,now});save();$('goalName').value=$('goalTarget').value=$('goalNow').value='';render()}
 function show(id,i){document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));$(id).classList.add('on');document.querySelectorAll('.bottomnav button,.sidebtn').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.bottomnav button')[i]?.classList.add('on');document.querySelectorAll('.sidebtn')[i]?.classList.add('on');scrollTo(0,0)}
-function clearAll(){if(confirm('¿Quieres borrar los datos de este mes? Los otros meses se conservarán.')){s=defaultMonth();store.months[store.active]=s;save();render()}}buildMonths();updateMonthlyMessage();render();
+function clearAll(){if(confirm('¿Quieres borrar los datos de este mes? Los otros meses se conservarán.')){s=defaultMonth();store.months[store.active]=s;save();render()}}buildMonths();updateMonthlyMessage();render();if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}
 </script></body></html>
