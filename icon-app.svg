@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<rect width="512" height="512" rx="92" fill="#fff"/>
+<text x="256" y="174" text-anchor="middle" font-family="Georgia,Times New Roman,serif" font-size="146" font-weight="700" fill="#080808">MÁS</text>
+<text x="256" y="318" text-anchor="middle" font-family="Georgia,Times New Roman,serif" font-size="154" font-weight="700" fill="#f50078">ALLÁ</text>
+<text x="73" y="384" text-anchor="middle" font-family="Georgia,Times New Roman,serif" font-size="43" font-weight="700" fill="#080808">DE</text>
+<text x="73" y="427" text-anchor="middle" font-family="Georgia,Times New Roman,serif" font-size="43" font-weight="700" fill="#080808">LA</text>
+<text x="292" y="423" text-anchor="middle" font-family="Georgia,Times New Roman,serif" font-size="91" font-weight="700" fill="#080808">IMAGEN</text>
+<path d="M165 451 Q280 420 411 448 Q300 433 224 471" fill="none" stroke="#f50078" stroke-width="7" stroke-linecap="round"/>
+<path d="M62 83 l7 20 20 7-20 7-7 20-7-20-20-7 20-7z" fill="#f50078"/>
+<path d="M444 397 l5 14 14 5-14 5-5 14-5-14-14-5 14-5z" fill="#f50078"/>
+</svg>
