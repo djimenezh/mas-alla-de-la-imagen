@@ -1,4 +1,4 @@
-const CACHE='mas-alla-finanzas-v26';
+const CACHE='mas-alla-finanzas-v27';
 const CORE=['./','./index.html','./manifest.webmanifest','./icon-app.svg'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));
