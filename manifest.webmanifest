@@ -9,9 +9,9 @@
   "description": "Control financiero mensual by Dilmara Jimenez",
   "icons": [
     {
-      "src": "event-brand.jpg",
-      "sizes": "700x467",
-      "type": "image/jpeg",
+      "src": "icon-app.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]
