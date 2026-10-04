@@ -18,11 +18,15 @@ button{border:0;border-radius:14px;padding:13px;font-weight:900;cursor:pointer}.
 .bottomnav{position:fixed;bottom:0;left:0;width:100%;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid var(--line);padding:7px 3px calc(8px + env(safe-area-inset-bottom));z-index:20}.bottomnav button{background:none;color:#777;font-size:10px;padding:6px 1px}.bottomnav button.on{color:#c45d91}
 .quick{margin-top:12px}.quick button{width:100%}
 @media(min-width:900px){
+ .mobilecredit{display:none}
+
  body{background:white}.app{display:grid;grid-template-columns:230px 1fr}.sidebar{display:block;position:fixed;width:230px;height:100vh;background:#0d0d10;color:white;padding:25px 15px}.sidebrand{font-family:Georgia,serif;font-size:32px;line-height:.9;letter-spacing:2px;margin-bottom:35px}.sidebrand small{font-family:Arial,sans-serif;font-size:9px;letter-spacing:3px}.sidebtn{display:block;width:100%;text-align:left;background:transparent;color:white;margin:6px 0;padding:13px}.sidebtn.on{background:linear-gradient(90deg,#f2b5d1,#e8a4c4);color:#111}.sidequote{position:absolute;bottom:28px;font-family:Georgia,serif;font-style:italic;font-size:18px;line-height:1.45;color:#f0d7e3}
  .workspace{grid-column:2}header{padding:22px 30px}.brand{display:none}.tophead{display:grid;grid-template-columns:1fr 330px;gap:25px;align-items:center}.hello{font-size:42px;margin:0}.quote{margin:0}.bottomnav{display:none}main{padding:18px 25px 40px}.grid4{grid-template-columns:repeat(4,1fr)}.kpi{min-height:120px}.kpi b{font-size:27px}.desktopgrid{display:grid;grid-template-columns:1.55fr .75fr .8fr;gap:12px;align-items:start}.desktopbottom{display:grid;grid-template-columns:.8fr 1.2fr .8fr;gap:12px}.donut{width:235px;height:235px;flex-basis:235px}.donut:after{inset:58px;font-size:12px}.page{min-height:500px}
 }
 
 @media(max-width:899px){
+  .mobilecredit{display:block;text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:13px;padding:24px 8px 8px;color:#17151b}
+
   :root{--pink:#e66aa7;--pink2:#ffd6e9;--blue:#64cce8;--blue2:#d6f5ff}
   header{background:linear-gradient(125deg,#fff 0%,#ffc3dc 16%,#e25c9c 57%,#67cfe9 100%);border-bottom:2px solid #5ec9e7}
   .primary{background:linear-gradient(100deg,#dc5b9a,#f39ac4)}
@@ -74,7 +78,7 @@ button{border:0;border-radius:14px;padding:13px;font-weight:900;cursor:pointer}.
 <section id="budget" class="page"><h2>Mi presupuesto mensual</h2><p class="tiny">Define cuánto quieres gastar como máximo en cada categoría.</p><div id="budgetList"></div></section>
 
 <section id="goals" class="page"><h2>Ahorros y metas ♡</h2><div class="card blue form"><input id="goalName" placeholder="Nombre de la meta"><div class="row"><input id="goalTarget" type="number" inputmode="numeric" placeholder="Meta $"><input id="goalNow" type="number" inputmode="numeric" placeholder="Ya tengo $"></div><button class="secondary" onclick="addGoal()">AÑADIR META</button></div><h2>Mis metas</h2><div id="goalList"></div><button class="primary" style="width:100%;margin-top:15px" onclick="clearAll()">BORRAR MIS DATOS</button></section>
-</main>
+<div class="mobilecredit">Creado por Dilmara Jimenez ♡</div></main>
 <nav class="bottomnav"><button class="on" onclick="show('home',0)">⌂<br>Inicio</button><button onclick="show('move',1)">＋<br>Ingresar</button><button onclick="show('budget',2)">◎<br>Presupuesto</button><button onclick="show('goals',3)">♡<br>Metas</button></nav>
 </div></div>
 <script>
