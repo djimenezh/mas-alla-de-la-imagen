@@ -182,4 +182,6 @@ function addTx(){let a=Number($('amount').value),d=$('desc').value.trim();if(!d|
 function budget(c,v){s.budgets[c]=Math.max(0,Number(v)||0);save();render()}function addGoal(){let n=$('goalName').value.trim(),t=Number($('goalTarget').value),now=Number($('goalNow').value)||0;if(!n||t<=0)return alert('Completa el nombre y monto de la meta.');s.goals.push({name:n,target:t,now});save();$('goalName').value=$('goalTarget').value=$('goalNow').value='';render()}
 function show(id,i){document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));$(id).classList.add('on');document.querySelectorAll('.bottomnav button,.sidebtn').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.bottomnav button')[i]?.classList.add('on');document.querySelectorAll('.sidebtn')[i]?.classList.add('on');scrollTo(0,0)}
 function clearAll(){if(confirm('¿Quieres borrar los datos de este mes? Los otros meses se conservarán.')){s=defaultMonth();store.months[store.active]=s;save();render()}}buildMonths();updateMonthlyMessage();updateCategories();render();if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}
-</script></body></html>
+</script>
+<script src="login-sync.js"></script>
+</body></html>
