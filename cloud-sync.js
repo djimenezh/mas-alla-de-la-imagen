@@ -47,14 +47,31 @@ async function signup(){
  if(data?.session&&data?.user){await connected(data.user);return}
  st('Cuenta creada 💗 Revisa tu correo para confirmar tu email una sola vez. Después entrarás con tu contraseña.');
 }
+async function forgot(){
+ const email=q('loginEmail').value.trim();if(!email)return st('Escribe primero tu correo 💗');
+ q('forgotButton').disabled=true;st('Enviando enlace para cambiar tu contraseña…');
+ const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+ q('forgotButton').disabled=false;
+ if(error){st('Error: '+error.message);return}
+ st('Te enviamos un correo 💌 Ábrelo para crear una nueva contraseña.');
+}
+async function saveNewPassword(){
+ const password=q('newPassword').value;if(password.length<6)return st('La contraseña debe tener al menos 6 caracteres 💗');
+ q('savePasswordButton').disabled=true;
+ const {error}=await c.auth.updateUser({password});
+ q('savePasswordButton').disabled=false;
+ if(error){st('Error: '+error.message);return}
+ history.replaceState({},document.title,location.pathname);q('resetBox').style.display='none';st('Contraseña actualizada ✓ Entrando…');
+ const {data:{user}}=await c.auth.getUser();if(user)await connected(user);
+}
 async function init(){
- c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);q('loginButton').onclick=login;q('signupButton').onclick=signup;
+ c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);q('loginButton').onclick=login;q('signupButton').onclick=signup;q('forgotButton').onclick=forgot;q('savePasswordButton').onclick=saveNewPassword;
  const logout=async()=>{await c.auth.signOut();location.reload()};
  q('logoutButton').onclick=logout;
  if(q('desktopLogout'))q('desktopLogout').onclick=logout;
  if(q('mobileLogout'))q('mobileLogout').onclick=logout;
  const {data:{session}}=await c.auth.getSession();if(session?.user)await connected(session.user);
- c.auth.onAuthStateChange((_e,s)=>{if(s?.user&&!u)connected(s.user)});
+ c.auth.onAuthStateChange((e,s)=>{if(e==='PASSWORD_RECOVERY'){u=s?.user||null;q('loginBox').style.display='none';q('accountBox').style.display='none';q('resetBox').style.display='block';q('authGate').style.display='grid';st('Crea tu nueva contraseña 💗');return}if(s?.user&&!u)connected(s.user)});
 }
 document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 })();
