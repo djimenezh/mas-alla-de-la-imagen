@@ -15,15 +15,15 @@ window.addEventListener('finance-data-changed',()=>{if(u){st('☁️ Guardando�
 async function sync(){
  st('Sincronizando…');
  const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');
- const {data,error}=await c.from('finance_profiles').select('data').eq('user_id',u.id).maybeSingle();
+ const {data,error}=await c.from('finance_profiles').select('data,updated_at').eq('user_id',u.id).maybeSingle();
  if(error){st('Error: '+error.message);return}
  const cloud=data?.data||null;
  const localHas=localHasData(local);
  const cloudHas=localHasData(cloud);
- const localTime=stamp(local),cloudTime=stamp(cloud);
+ const localTime=stamp(local),cloudTime=Math.max(stamp(cloud),Date.parse(data?.updated_at||'')||0);
  if(localHas&&cloudHas){
    backup(local,'local');backup(cloud,'cloud');
-   store=cloudTime>localTime?cloud:local;
+   store=cloudTime>=localTime?cloud:local;
  }else if(localHas){
    backup(local,'local');store=local;
  }else if(cloudHas){
@@ -31,6 +31,7 @@ async function sync(){
  }else{
    store=local||cloud||store;
  }
+ if(store===cloud&&cloudTime)store.updatedAt=new Date(cloudTime).toISOString();
  if(!store.months)store.months={};if(!store.cards)store.cards=[];if(!store.active)store.active='2026-10';
  if(!store.months[store.active])store.months[store.active]=defaultMonth();
  Object.values(store.months).forEach(m=>{(m.cards||[]).forEach(card=>{if(!store.cards.some(g=>g.id===card.id))store.cards.push(card)})});
