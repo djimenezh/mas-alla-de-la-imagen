@@ -9,8 +9,7 @@ async function upload(){
  if(error){console.error(error);st('Error al sincronizar: '+error.message);return}
  st('☁️ Sincronizado');
 }
-const oldSave=window.save;
-window.save=function(){oldSave();if(u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,300)}};
+window.addEventListener('finance-data-changed',()=>{if(u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,150)}});
 async function sync(){
  st('Sincronizando…');
  const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');
