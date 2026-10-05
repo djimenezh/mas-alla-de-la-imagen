@@ -36,7 +36,10 @@ async function login(){
 }
 async function init(){
  c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);q('loginButton').onclick=login;
- q('logoutButton').onclick=async()=>{await c.auth.signOut();location.reload()};
+ const logout=async()=>{await c.auth.signOut();location.reload()};
+ q('logoutButton').onclick=logout;
+ if(q('desktopLogout'))q('desktopLogout').onclick=logout;
+ if(q('mobileLogout'))q('mobileLogout').onclick=logout;
  const {data:{session}}=await c.auth.getSession();if(session?.user)await connected(session.user);
  c.auth.onAuthStateChange((_e,s)=>{if(s?.user&&!u)connected(s.user)});
 }
