@@ -4,13 +4,13 @@ const q=id=>document.getElementById(id);
 function st(t){const x=q('cloudStatus');if(x)x.textContent=t}
 function localHasData(x){return !!(x&&x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||Object.values(m.budgets||{}).some(v=>Number(v)>0)))}
 async function upload(){
- if(!ready||!u)return;
+ if(!u)return;
  const {error}=await c.from('finance_profiles').upsert({user_id:u.id,data:store,updated_at:new Date().toISOString()},{onConflict:'user_id'});
  if(error){console.error(error);st('Error al sincronizar: '+error.message);return}
  st('☁️ Sincronizado');
 }
 const oldSave=window.save;
-window.save=function(){oldSave();if(ready&&u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,300)}};
+window.save=function(){oldSave();if(u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,300)}};
 async function sync(){
  st('Sincronizando…');
  const {data,error}=await c.from('finance_profiles').select('data').eq('user_id',u.id).maybeSingle();
@@ -21,7 +21,7 @@ async function sync(){
    s=store.months[store.active];localStorage.setItem('masAllaFinanzas',JSON.stringify(store));
    if(q('monthSelect'))q('monthSelect').value=store.active;updateMonthlyMessage();updateCardSelect();render();
  }else if(localHasData(local)){store=local;if(!store.cards)store.cards=[];s=store.months[store.active]||defaultMonth();updateCardSelect()}
- ready=true;await upload();st('✓ Cuenta conectada · ☁️ Sincronizado');
+ ready=true;localStorage.setItem('masAllaFinanzas',JSON.stringify(store));await upload();st('✓ Cuenta conectada · ☁️ Sincronizado');
 }
 async function connected(user){
  u=user;q('loginBox').style.display='none';q('accountBox').style.display='block';q('accountEmail').textContent=user.email||'';
