@@ -23,10 +23,11 @@ async function sync(){
  }else if(localHasData(local)){store=local;if(!store.cards)store.cards=[];s=store.months[store.active]||defaultMonth();updateCardSelect()}
  ready=true;localStorage.setItem('masAllaFinanzas',JSON.stringify(store));await upload();st('✓ Cuenta conectada · ☁️ Sincronizado');
 }
+async function refreshFromCloud(){if(!u||!ready)return;const {data,error}=await c.from('finance_profiles').select('data').eq('user_id',u.id).maybeSingle();if(error||!data?.data)return;const remote=data.data;const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');if(JSON.stringify(remote)!==JSON.stringify(local)){store=remote;if(!store.months)store.months={};if(!store.cards)store.cards=[];if(!store.active)store.active='2026-10';if(!store.months[store.active])store.months[store.active]=defaultMonth();s=store.months[store.active];localStorage.setItem('masAllaFinanzas',JSON.stringify(store));if(q('monthSelect'))q('monthSelect').value=store.active;updateMonthlyMessage();updateCardSelect();render();st('☁️ Actualizado')}}
 async function connected(user){
  u=user;q('loginBox').style.display='none';q('accountBox').style.display='block';q('accountEmail').textContent=user.email||'';
  const n=user.user_metadata?.display_name||localStorage.getItem('masAllaNombre');if(n)document.querySelector('.hello').textContent='Hola '+n+' ♡';
- await sync();q('authGate').style.display='none';
+ await sync();q('authGate').style.display='none';clearInterval(window.__financeSync);window.__financeSync=setInterval(refreshFromCloud,5000);
 }
 async function login(){
  const email=q('loginEmail').value.trim(),password=q('loginPassword').value;
