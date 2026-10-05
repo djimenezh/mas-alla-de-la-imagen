@@ -2,7 +2,7 @@
 let c,u,ready=false,timer;
 const q=id=>document.getElementById(id);
 function st(t){const x=q('cloudStatus');if(x)x.textContent=t}
-function localHasData(x){return !!(x&&x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||Object.values(m.budgets||{}).some(v=>Number(v)>0)))}
+function localHasData(x){return !!(x&&((x.cards&&x.cards.length)||(x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||(m.cards&&m.cards.length)||Object.values(m.budgets||{}).some(v=>Number(v)>0)))))}
 async function upload(){
  if(!u)return;
  const {error}=await c.from('finance_profiles').upsert({user_id:u.id,data:store,updated_at:new Date().toISOString()},{onConflict:'user_id'});
@@ -17,7 +17,7 @@ async function sync(){
  if(error){st('Error: '+error.message);return}
  const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');
  if(data&&data.data&&data.data.months){
-   store=data.data;if(!store.active)store.active='2026-10';if(!store.months)store.months={};if(!store.cards)store.cards=[];if(!store.months[store.active])store.months[store.active]=defaultMonth();Object.values(store.months).forEach(m=>{(m.cards||[]).forEach(card=>{if(!store.cards.some(g=>g.id===card.id))store.cards.push(card)})});
+   const cloud=data.data;const cloudHas=localHasData(cloud)||((cloud.cards||[]).length>0);const localHas=localHasData(local)||((local?.cards||[]).length>0);if(localHas&&!cloudHas){store=local}else{store=cloud};if(!store.active)store.active='2026-10';if(!store.months)store.months={};if(!store.cards)store.cards=[];if(!store.months[store.active])store.months[store.active]=defaultMonth();Object.values(store.months).forEach(m=>{(m.cards||[]).forEach(card=>{if(!store.cards.some(g=>g.id===card.id))store.cards.push(card)})});
    s=store.months[store.active];localStorage.setItem('masAllaFinanzas',JSON.stringify(store));
    if(q('monthSelect'))q('monthSelect').value=store.active;updateMonthlyMessage();updateCardSelect();render();
  }else if(localHasData(local)){store=local;if(!store.cards)store.cards=[];s=store.months[store.active]||defaultMonth();updateCardSelect()}
@@ -66,7 +66,7 @@ async function saveNewPassword(){
 }
 async function init(){
  c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);q('loginButton').onclick=login;q('signupButton').onclick=signup;q('forgotButton').onclick=forgot;q('savePasswordButton').onclick=saveNewPassword;
- const logout=async()=>{try{if(ready&&u)await upload()}catch(_){}localStorage.removeItem('masAllaFinanzas');localStorage.removeItem('masAllaNombre');ready=false;u=null;await c.auth.signOut();location.reload()};
+ const logout=async()=>{st('☁️ Guardando antes de salir…');try{if(u)await upload()}catch(e){console.error(e);st('No pude guardar. Intenta salir nuevamente.');return}ready=false;u=null;await c.auth.signOut();location.reload()};
  q('logoutButton').onclick=logout;
  if(q('desktopLogout'))q('desktopLogout').onclick=logout;
  if(q('mobileLogout'))q('mobileLogout').onclick=logout;
