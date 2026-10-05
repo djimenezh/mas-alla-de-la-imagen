@@ -2,7 +2,9 @@
 let c,u,ready=false,timer;
 const q=id=>document.getElementById(id);
 function st(t){const x=q('cloudStatus');if(x)x.textContent=t}
-function localHasData(x){return !!(x&&((x.cards&&x.cards.length)||(x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||(m.cards&&m.cards.length)||Object.values(m.budgets||{}).some(v=>Number(v)>0)))))}
+function localHasData(x){return !!(x&&((x.cards&&x.cards.length)||(x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||(m.cards&&m.cards.length)||(m.checks&&m.checks.some(Boolean))||Object.values(m.budgets||{}).some(v=>Number(v)>0)))))}
+function stamp(x){return Date.parse(x?.updatedAt||'')||0}
+function backup(x,label){if(!x||!localHasData(x))return;try{localStorage.setItem('masAllaBackup:'+label+':'+Date.now(),JSON.stringify(x))}catch(e){console.warn('No pude crear respaldo local',e)}}
 async function upload(){
  if(!u)return;
  const {error}=await c.from('finance_profiles').upsert({user_id:u.id,data:store,updated_at:new Date().toISOString()},{onConflict:'user_id'});
@@ -18,10 +20,14 @@ async function sync(){
  const cloud=data?.data||null;
  const localHas=localHasData(local);
  const cloudHas=localHasData(cloud);
- if(localHas){
-   store=local;
+ const localTime=stamp(local),cloudTime=stamp(cloud);
+ if(localHas&&cloudHas){
+   backup(local,'local');backup(cloud,'cloud');
+   store=cloudTime>localTime?cloud:local;
+ }else if(localHas){
+   backup(local,'local');store=local;
  }else if(cloudHas){
-   store=cloud;
+   backup(cloud,'cloud');store=cloud;
  }else{
    store=local||cloud||store;
  }
