@@ -29,13 +29,26 @@ async function connected(user){
  await sync();q('authGate').style.display='none';
 }
 async function login(){
- const n=q('loginName').value.trim(),email=q('loginEmail').value.trim();if(!n||!email)return alert('Escribe tu nombre y tu correo 💗');
- localStorage.setItem('masAllaNombre',n);st('Enviando acceso a tu correo…');
- const {error}=await c.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname,data:{display_name:n}}});
- if(error){st('Error: '+error.message);return}st('Revisa tu correo ✉️');
+ const email=q('loginEmail').value.trim(),password=q('loginPassword').value;
+ if(!email||!password)return st('Escribe tu correo y contraseña 💗');
+ st('Entrando…');q('loginButton').disabled=true;
+ const {data,error}=await c.auth.signInWithPassword({email,password});
+ q('loginButton').disabled=false;
+ if(error){st(error.message==='Invalid login credentials'?'Correo o contraseña incorrectos. Si es tu primera vez, toca CREAR MI CUENTA.':'Error: '+error.message);return}
+ if(data?.user)await connected(data.user);
+}
+async function signup(){
+ const n=q('loginName').value.trim(),email=q('loginEmail').value.trim(),password=q('loginPassword').value;
+ if(!n||!email||password.length<6)return st('Escribe tu nombre, correo y una contraseña de al menos 6 caracteres 💗');
+ localStorage.setItem('masAllaNombre',n);st('Creando tu cuenta…');q('signupButton').disabled=true;
+ const {data,error}=await c.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname,data:{display_name:n}}});
+ q('signupButton').disabled=false;
+ if(error){st('Error: '+error.message);return}
+ if(data?.session&&data?.user){await connected(data.user);return}
+ st('Cuenta creada 💗 Revisa tu correo para confirmar tu email una sola vez. Después entrarás con tu contraseña.');
 }
 async function init(){
- c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);q('loginButton').onclick=login;
+ c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);q('loginButton').onclick=login;q('signupButton').onclick=signup;
  const logout=async()=>{await c.auth.signOut();location.reload()};
  q('logoutButton').onclick=logout;
  if(q('desktopLogout'))q('desktopLogout').onclick=logout;
