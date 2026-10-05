@@ -1,4 +1,4 @@
-const CACHE='mas-alla-finanzas-v34';
+const CACHE='mas-alla-finanzas-v35';
 const CORE=['./','./index.html','./manifest.webmanifest','./icon-app.svg','./supabase-config.js','./cloud-sync.js'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));
