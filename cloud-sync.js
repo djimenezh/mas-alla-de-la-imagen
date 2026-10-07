@@ -8,10 +8,26 @@ function txCount(x){return Object.values(x?.months||{}).reduce((n,m)=>n+((m?.tx|
 function backup(x,label){if(!x||!localHasData(x))return;try{localStorage.setItem('masAllaBackup:'+label+':'+Date.now(),JSON.stringify(x))}catch(e){console.warn('No pude crear respaldo local',e)}}
 async function upload(){
  if(!u)return;
+ // BLINDAJE ANTI-PERDIDA: antes de escribir, leer la nube y nunca permitir
+ // que una copia con menos movimientos reemplace silenciosamente una más completa.
+ const {data:remote,error:readError}=await c.from('finance_profiles').select('data,updated_at').eq('user_id',u.id).maybeSingle();
+ if(readError){console.error(readError);st('Error al verificar respaldo: '+readError.message);return}
+ const cloud=remote?.data||null;
+ const localTx=txCount(store),cloudTx=txCount(cloud);
+ if(cloudHasDataSafe(cloud)&&cloudTx>localTx){
+   backup(store,'blocked-local');backup(cloud,'protected-cloud');
+   console.error('Sincronización bloqueada para evitar pérdida de datos',{localTx,cloudTx});
+   st('⚠️ Protección activa: no se sobrescribió tu historial');
+   return;
+ }
+ // Conserva una copia local de ambos estados antes de cada escritura.
+ backup(store,'before-upload');
+ if(cloudHasDataSafe(cloud))backup(cloud,'cloud-before-upload');
  const {error}=await c.from('finance_profiles').upsert({user_id:u.id,data:store,updated_at:new Date().toISOString()},{onConflict:'user_id'});
  if(error){console.error(error);st('Error al sincronizar: '+error.message);return}
  st('☁️ Sincronizado');
 }
+function cloudHasDataSafe(x){return localHasData(x)}
 window.addEventListener('finance-data-changed',()=>{if(u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,150)}});
 async function sync(){
  st('Sincronizando…');
