@@ -114,5 +114,12 @@ async function init(){
  c.auth.onAuthStateChange((e,s)=>{if(e==='PASSWORD_RECOVERY'){u=s?.user||null;q('loginBox').style.display='none';q('accountBox').style.display='none';q('resetBox').style.display='block';q('authGate').style.display='grid';st('Crea tu nueva contraseña 💗');return}if(s?.user&&!u)connected(s.user)});
  }catch(e){console.error('Error iniciando sincronización',e);st('⚠️ Error de sincronización · tus datos siguen guardados en este dispositivo')}
 }
-document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
+// Arranque robusto: cloud-sync se carga al final del HTML, pero si DOMContentLoaded
+// ya ocurrió no debemos quedarnos esperando un evento que no volverá a dispararse.
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',init,{once:true});
+}else{
+  init();
+}
+setTimeout(()=>{const x=q('cloudStatus');if(x&&/Verificando respaldo|Sincronizando/.test(x.textContent)){st('⚠️ La sincronización no respondió · tus datos locales siguen guardados')}},12000);
 })();
