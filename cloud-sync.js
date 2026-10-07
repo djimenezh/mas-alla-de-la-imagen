@@ -14,6 +14,14 @@ async function upload(){
  if(readError){console.error(readError);st('Error al verificar respaldo: '+readError.message);return}
  const cloud=remote?.data||null;
  const localTx=txCount(store),cloudTx=txCount(cloud);
+ // Un dispositivo vacio nunca puede borrar un historial existente en la nube.
+ if(cloudHasDataSafe(cloud)&&!localHasData(store)){
+   backup(cloud,'protected-cloud');
+   store=cloud;
+   localStorage.setItem('masAllaFinanzas',JSON.stringify(store));
+   st('☁️ Historial recuperado y protegido');
+   return;
+ }
  if(cloudHasDataSafe(cloud)&&cloudTx>localTx){
    backup(store,'blocked-local');backup(cloud,'protected-cloud');
    console.error('Sincronización bloqueada para evitar pérdida de datos',{localTx,cloudTx});
