@@ -102,13 +102,17 @@ async function saveNewPassword(){
  const {data:{user}}=await c.auth.getUser();if(user)await connected(user);
 }
 async function init(){
- c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);q('loginButton').onclick=login;q('signupButton').onclick=signup;q('forgotButton').onclick=forgot;q('savePasswordButton').onclick=saveNewPassword;
+ try{
+  if(!window.supabase||typeof SUPABASE_URL==='undefined'||typeof SUPABASE_KEY==='undefined'){st('⚠️ Sin conexión con respaldo');return}
+  c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  q('loginButton').onclick=login;q('signupButton').onclick=signup;q('forgotButton').onclick=forgot;q('savePasswordButton').onclick=saveNewPassword;
  const logout=async()=>{st('☁️ Guardando antes de salir…');try{if(u)await upload()}catch(e){console.error(e);st('No pude guardar. Intenta salir nuevamente.');return}ready=false;u=null;await c.auth.signOut();location.reload()};
  q('logoutButton').onclick=logout;
  if(q('desktopLogout'))q('desktopLogout').onclick=logout;
  if(q('mobileLogout'))q('mobileLogout').onclick=logout;
  const {data:{session}}=await c.auth.getSession();if(session?.user)await connected(session.user);
  c.auth.onAuthStateChange((e,s)=>{if(e==='PASSWORD_RECOVERY'){u=s?.user||null;q('loginBox').style.display='none';q('accountBox').style.display='none';q('resetBox').style.display='block';q('authGate').style.display='grid';st('Crea tu nueva contraseña 💗');return}if(s?.user&&!u)connected(s.user)});
+ }catch(e){console.error('Error iniciando sincronización',e);st('⚠️ Error de sincronización · tus datos siguen guardados en este dispositivo')}
 }
 document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 })();
