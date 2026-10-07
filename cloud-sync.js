@@ -4,6 +4,7 @@ const q=id=>document.getElementById(id);
 function st(t){const x=q('cloudStatus');if(x)x.textContent=t}
 function localHasData(x){return !!(x&&((x.cards&&x.cards.length)||(x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||(m.cards&&m.cards.length)||(m.checks&&m.checks.some(Boolean))||Object.values(m.budgets||{}).some(v=>Number(v)>0)))))}
 function stamp(x){return Date.parse(x?.updatedAt||'')||0}
+function txCount(x){return Object.values(x?.months||{}).reduce((n,m)=>n+((m?.tx||[]).length),0)}
 function backup(x,label){if(!x||!localHasData(x))return;try{localStorage.setItem('masAllaBackup:'+label+':'+Date.now(),JSON.stringify(x))}catch(e){console.warn('No pude crear respaldo local',e)}}
 async function upload(){
  if(!u)return;
@@ -23,7 +24,10 @@ async function sync(){
  const localTime=stamp(local),cloudTime=Math.max(stamp(cloud),Date.parse(data?.updated_at||'')||0);
  if(localHas&&cloudHas){
    backup(local,'local');backup(cloud,'cloud');
-   store=cloudTime>=localTime?cloud:local;
+   const localTx=txCount(local),cloudTx=txCount(cloud);
+   // Protección anti-pérdida: una copia con menos movimientos nunca reemplaza automáticamente una copia más completa.
+   // Si ambas tienen la misma cantidad, recién ahí usamos la fecha de actualización.
+   store=localTx!==cloudTx?(localTx>cloudTx?local:cloud):(cloudTime>=localTime?cloud:local);
  }else if(localHas){
    backup(local,'local');store=local;
  }else if(cloudHas){
