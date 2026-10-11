@@ -11,87 +11,122 @@ function backup(x,label){if(!x||!localHasData(x))return;try{
  // Conserva las últimas 8 copias por tipo, sin tocar la copia activa.
  keys.slice(0,-8).forEach(k=>localStorage.removeItem(k));
 }catch(e){console.warn('No pude crear respaldo local',e)}}
-function comparable(x){if(!x)return null;const {updatedAt,...rest}=x;return JSON.stringify(rest)}
+// Compare financial content independently of the selected screen/month and property order.
+const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
+function canonical(x){if(Array.isArray(x))return x.map(canonical);if(x&&typeof x==='object')return Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])]));return x}
+function comparable(x){if(!x)return null;const {updatedAt,active,...rest}=x;return JSON.stringify(canonical(rest))}
 function sameData(a,b){return comparable(a)===comparable(b)}
 const ownerKey='masAllaFinanzasOwner';
-function protectAccount(user){const previous=localStorage.getItem(ownerKey);if(previous&&previous!==user.id){const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');backup(local,'other-account-'+previous);st('⚠️ Este dispositivo tiene información de otra cuenta. No se mezclaron datos. Contacta a soporte antes de continuar.');return false}return true}
+const baselineKey=()=> 'masAllaSyncBaseline:'+u.id;
+function protectAccount(user){const previous=localStorage.getItem(ownerKey);if(previous&&previous!==user.id){backup(store,'other-account-'+previous);st('⚠️ Hay información de otra cuenta en este dispositivo. Se conservó sin mezclar.');return false}return true}
+function equal(a,b){return JSON.stringify(canonical(a))===JSON.stringify(canonical(b))}
+function mergeStates(base,local,cloud){
+ const issues=[];
+ function walk(b,l,r,path){
+  if(equal(l,r))return clone(l);
+  if(base!==null&&equal(l,b))return clone(r);
+  if(base!==null&&equal(r,b))return clone(l);
+  if(base!==null&&b!==undefined&&(l===undefined||r===undefined)){issues.push({path,local:clone(l),cloud:clone(r)});return clone(l)}
+  if(l===undefined)return clone(r);
+  if(r===undefined)return clone(l);
+  if(Array.isArray(l)&&Array.isArray(r)){
+   // Stable IDs allow concurrent additions; legacy arrays need an explicit choice.
+   if([...l,...r,...(Array.isArray(b)?b:[])].every(x=>x&&typeof x==='object'&&x.id)){
+    const bm=new Map((b||[]).map(x=>[x.id,x])),lm=new Map(l.map(x=>[x.id,x])),rm=new Map(r.map(x=>[x.id,x]));
+    return [...new Set([...lm.keys(),...rm.keys(),...bm.keys()])].map(id=>walk(bm.get(id),lm.get(id),rm.get(id),path+'/'+id)).filter(x=>x!==undefined);
+   }
+  }else if(l&&r&&typeof l==='object'&&typeof r==='object'){
+   const out={};for(const k of new Set([...Object.keys(b||{}),...Object.keys(l),...Object.keys(r)])){
+    if(k==='active'||k==='updatedAt'){out[k]=clone(l[k]??r[k]);continue}
+    const v=walk(b?.[k],l[k],r[k],path+'/'+k);if(v!==undefined)out[k]=v;
+   }return out;
+  }
+  const issue={path,local:clone(l),cloud:clone(r)};issues.push(issue);return clone(l);
+ }
+ return {data:walk(base,local,cloud,''),issues};
+}
+function readable(value){
+ if(value===undefined)return 'Eliminado';
+ if(Array.isArray(value))return value.length?value.map(readable).join('\n\n'):'Sin registros';
+ if(value&&typeof value==='object'){
+  const labels={amount:'Monto',desc:'Descripción',category:'Categoría',kind:'Tipo',name:'Nombre',limit:'Cupo',target:'Meta',now:'Ahorrado',close:'Día de cierre',pay:'Día de pago',budgets:'Presupuestos',tx:'Movimientos',goals:'Metas',cards:'Tarjetas',checks:'Revisión del mes',decision:'Compra'};
+  return Object.entries(value).filter(([key])=>!['id','cardId','updatedAt'].includes(key)).map(([key,v])=>(labels[key]||key)+': '+(key==='amount'||key==='limit'||key==='target'||key==='now'?clp(v):readable(v))).join('\n');
+ }
+ return ({income:'Ingreso',expense:'Gasto',saving:'Ahorro',true:'Sí',false:'No'})[String(value)]||String(value);
+}
+let reviewState=null,cloudVersion=null;
+function install(x){store=clone(x)||{months:{},cards:[],active:'2026-10'};store.months=store.months||{};store.cards=store.cards||[];store.active=store.active||'2026-10';if(!store.months[store.active])store.months[store.active]=defaultMonth();s=store.months[store.active];localStorage.setItem('masAllaFinanzas',JSON.stringify(store));if(q('monthSelect'))q('monthSelect').value=store.active;updateMonthlyMessage();updateCardSelect();render()}
+function remember(x){cloudBaseline=clone(x);localStorage.setItem(baselineKey(),JSON.stringify(x));localStorage.setItem(ownerKey,u.id)}
+function showReview(result,remote){
+ conflict=true;reviewState={result,remote:clone(remote),local:clone(store)};
+ st('⚠️ Hay cambios que necesitan tu elección. Tus dos copias están protegidas.');
+ let button=q('reviewSync');if(!button){button=document.createElement('button');button.id='reviewSync';button.textContent='REVISAR DIFERENCIAS';q('cloudStatus').after(button)}button.hidden=false;
+ button.onclick=()=>{
+  let dialog=q('syncReviewDialog');if(dialog)dialog.remove();dialog=document.createElement('dialog');dialog.id='syncReviewDialog';dialog.style.cssText='max-width:620px;width:92%;max-height:85vh;border:1px solid #e8a4c4;border-radius:20px;padding:20px';
+  const title=document.createElement('h2');title.textContent='Elige qué versión conservar';dialog.append(title);
+  const note=document.createElement('p');note.textContent='Revisa cada diferencia. Se conservarán respaldos de ambas copias. Los cambios compatibles ya se combinaron.';dialog.append(note);
+  const selections=[];
+  for(const item of result.issues){
+   const box=document.createElement('section'),label=document.createElement('p');label.textContent=item.path.replace('/months/','Mes ').replace('/tx',' · Movimientos').replace('/goals',' · Metas').replace('/budgets',' · Presupuesto').replace('/cards','Tarjetas').replace(/\/(?:[a-f0-9-]{20,}|card_\d+)/g,'').replace('/amount',' · Monto').replace('/checks',' · Revisión del mes');box.append(label);
+   const select=document.createElement('select');select.style.cssText='width:100%;padding:10px;font-size:16px';
+   for(const [value,text] of [['','Selecciona una versión'],['local','Este teléfono'],['cloud','La nube']]){const o=document.createElement('option');o.value=value;o.textContent=text;select.append(o)}
+   for(const [name,value] of [['Este teléfono',item.local],['La nube',item.cloud]]){const heading=document.createElement('b'),pre=document.createElement('pre');heading.textContent=name;pre.textContent=readable(value);pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto';box.append(heading,pre)}
+   box.append(select);dialog.append(box);selections.push({item,select});
+  }
+  const cancel=document.createElement('button');cancel.textContent='VOLVER';cancel.onclick=()=>dialog.close();dialog.append(cancel);
+  const apply=document.createElement('button');apply.textContent='GUARDAR ELECCIONES';dialog.append(apply);
+  apply.onclick=async()=>{
+   if(selections.some(x=>!x.select.value)){alert('Selecciona una versión para cada diferencia.');return}
+   // Do not apply stale choices if the user edited while the review was open.
+   if(!sameData(store,reviewState.local)){dialog.close();conflict=false;await sync();return}
+   const resolved=clone(result.data);
+   for(const {item,select} of selections){let obj=resolved;const keys=item.path.split('/').slice(1);for(const key of keys.slice(0,-1))obj=Array.isArray(obj)?obj.find(x=>x.id===key):obj[key];const key=keys.at(-1),value=clone(item[select.value]);if(Array.isArray(obj)){const i=obj.findIndex(x=>x.id===key);if(value===undefined){if(i>=0)obj.splice(i,1)}else if(i>=0)obj[i]=value;else obj.push(value)}else if(value===undefined)delete obj[key];else obj[key]=value}
+   backup(store,'review-local');backup(remote,'review-cloud');remember(remote);install(resolved);conflict=false;button.hidden=true;dialog.close();await upload();
+  };document.body.append(dialog);dialog.showModal();
+ };
+}
 async function upload(){
- if(!u)return false;
- if(saving){pending=true;return await saving;}
- saving=performUpload();
- try{return await saving}finally{saving=null;if(pending){pending=false;setTimeout(()=>upload(),0)}}
+ if(!u||!ready)return false;
+ if(saving){pending=true;return await saving}
+ saving=performUpload();try{return await saving}finally{saving=null;if(pending){pending=false;setTimeout(upload,0)}}
 }
 async function performUpload(){
- if(conflict){st('⚠️ Hay datos diferentes en este teléfono y en la nube. No se sobrescribió nada. Contacta a soporte antes de cambiar de dispositivo.');return false;}
- // BLINDAJE ANTI-PERDIDA: antes de escribir, leer la nube y nunca permitir
- // que una copia con menos movimientos reemplace silenciosamente una más completa.
+ if(conflict)return false;
  const {data:remote,error:readError}=await c.from('finance_profiles').select('data,updated_at').eq('user_id',u.id).maybeSingle();
- if(readError){console.error(readError);st('Error al verificar respaldo: '+readError.message);return false}
- const cloud=remote?.data||null;
- const localTx=txCount(store),cloudTx=txCount(cloud);
- // Un dispositivo vacio nunca puede borrar un historial existente en la nube.
- if(cloudHasDataSafe(cloud)&&!localHasData(store)){
-   backup(cloud,'protected-cloud');
-   store=cloud;
-   localStorage.setItem('masAllaFinanzas',JSON.stringify(store));
-   st('☁️ Historial recuperado y protegido');
-   cloudBaseline=cloud;return true;
+ if(readError){st('Error al verificar respaldo: '+readError.message);return false}
+ const cloud=remote?.data||null;cloudVersion=remote?.updated_at;
+ backup(store,'before-upload');backup(cloud,'cloud-before-upload');
+ if(!sameData(cloud,cloudBaseline)){
+  if(!localHasData(store)){install(cloud);remember(cloud);st('☁️ Sincronizado');return true}
+  if(localHasData(cloud)){const result=mergeStates(cloudBaseline,store,cloud);if(result.issues.length){showReview(result,cloud);return false}install(result.data)}
+  remember(cloud);
  }
- if(cloudHasDataSafe(cloud)&&cloudTx>localTx){
-   backup(store,'blocked-local');backup(cloud,'protected-cloud');
-   console.error('Sincronización bloqueada para evitar pérdida de datos',{localTx,cloudTx});
-   st('⚠️ Protección activa: no se sobrescribió tu historial');
-   conflict=true;return false;
- }
- if(!sameData(cloud,cloudBaseline)){backup(store,'conflict-local');backup(cloud,'conflict-cloud');conflict=true;st('⚠️ Otro dispositivo cambió los datos. No se sobrescribió nada. Contacta a soporte.');return false}
- // Conserva una copia local de ambos estados antes de cada escritura.
- backup(store,'before-upload');
- if(cloudHasDataSafe(cloud))backup(cloud,'cloud-before-upload');
- const snapshot=JSON.parse(JSON.stringify(store));
- const {error}=await c.from('finance_profiles').upsert({user_id:u.id,data:snapshot,updated_at:new Date().toISOString()},{onConflict:'user_id'});
- if(error){console.error(error);st('Error al sincronizar: '+error.message);return false}
- cloudBaseline=snapshot;if(!sameData(store,snapshot)){pending=true;st('☁️ Guardando cambios pendientes…')}else st('☁️ Sincronizado');return true;
+ const snapshot=clone(store),row={user_id:u.id,data:snapshot,updated_at:new Date().toISOString()};
+ // Compare-and-swap: a second device cannot overwrite changes made after our read.
+ const query=remote?c.from('finance_profiles').update(row).eq('user_id',u.id).eq('updated_at',cloudVersion):c.from('finance_profiles').insert(row);
+ const {data:written,error}=await query.select('user_id');
+ if(error){st('No se confirmó la sincronización. Tus datos siguen en este dispositivo.');return false}
+ if(!written?.length){pending=true;st('☁️ Otro dispositivo guardó cambios. Volviendo a sincronizar…');return false}
+ remember(snapshot);if(!sameData(store,snapshot)){pending=true;st('☁️ Guardando cambios pendientes…')}else st('☁️ Sincronizado');return true;
 }
-function cloudHasDataSafe(x){return localHasData(x)}
-window.addEventListener('finance-data-changed',()=>{if(u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,150)}});
+window.addEventListener('finance-data-changed',()=>{if(u&&ready){if(conflict){st('⚠️ Cambios guardados en este teléfono. Revisa las diferencias para sincronizar.');return}st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,150)}});
 window.addEventListener('online',()=>{if(u&&!conflict)upload()});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&u&&!conflict){clearTimeout(timer);upload()}});
+document.addEventListener('visibilitychange',()=>{if(u&&!conflict){clearTimeout(timer);upload()}});
 async function sync(){
- st('Sincronizando…');
- if(!protectAccount(u)){conflict=true;return false;}
- const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');
+ ready=false;st('Sincronizando…');if(!protectAccount(u)){conflict=true;return false}
+ const local=clone(store);
  const {data,error}=await c.from('finance_profiles').select('data,updated_at').eq('user_id',u.id).maybeSingle();
  if(error){st('Error: '+error.message);return false}
- const cloud=data?.data||null;
- cloudBaseline=cloud?JSON.parse(JSON.stringify(cloud)):null;conflict=false;
- const localHas=localHasData(local);
- const cloudHas=localHasData(cloud);
- if(!localStorage.getItem(ownerKey)&&localHas&&cloudHas&&!sameData(local,cloud)){
-   backup(local,'unassigned-local');backup(cloud,'unassigned-cloud');conflict=true;
-   st('⚠️ Hay información local sin cuenta identificada y datos en la nube. Guardamos copias y no sobrescribimos nada.');return false;
+ const cloud=data?.data||null;let base=null;try{base=JSON.parse(localStorage.getItem(baselineKey())||'null')}catch(e){}
+ cloudBaseline=clone(cloud);conflict=false;backup(local,'local');backup(cloud,'cloud');
+ if(!localStorage.getItem(ownerKey)&&localHasData(local)&&!sameData(local,cloud)){
+  // Legacy unowned records must not silently become another account's data.
+  ready=true;showReview({data:clone(local),issues:[{path:'/months',local:clone(local.months),cloud:clone(cloud?.months||{})},{path:'/cards',local:clone(local.cards||[]),cloud:clone(cloud?.cards||[])}]},cloud);return false;
  }
- const localTime=stamp(local),cloudTime=Math.max(stamp(cloud),Date.parse(data?.updated_at||'')||0);
- if(localHas&&cloudHas){
-   backup(local,'local');backup(cloud,'cloud');
-   if(!sameData(local,cloud)){
-     conflict=true;store=local;
-     st('⚠️ Detectamos datos diferentes en el teléfono y la nube. Conservamos ambos respaldos y bloqueamos la sobrescritura. Contacta a soporte.');
-   }else{store=cloud;}
- }else if(localHas){
-   backup(local,'local');store=local;
- }else if(cloudHas){
-   backup(cloud,'cloud');store=cloud;
- }else{
-   store=local||cloud||store;
- }
- if(store===cloud&&cloudTime)store.updatedAt=new Date(cloudTime).toISOString();
- if(!store.months)store.months={};if(!store.cards)store.cards=[];if(!store.active)store.active='2026-10';
- if(!store.months[store.active])store.months[store.active]=defaultMonth();
- Object.values(store.months).forEach(m=>{(m.cards||[]).forEach(card=>{if(!store.cards.some(g=>g.id===card.id))store.cards.push(card)})});
- s=store.months[store.active];
- localStorage.setItem('masAllaFinanzas',JSON.stringify(store));
- if(q('monthSelect'))q('monthSelect').value=store.active;updateMonthlyMessage();updateCardSelect();render();
- ready=true;if(!conflict){const saved=await upload();if(saved){localStorage.setItem(ownerKey,u.id);st('✓ Cuenta conectada · ☁️ Sincronizado');}}return !conflict;
+ if(localHasData(local)&&localHasData(cloud)&&!sameData(local,cloud)){
+  const result=mergeStates(base,local,cloud);ready=true;if(result.issues.length){showReview(result,cloud);return false}install(result.data);
+ }else install(localHasData(cloud)?{...cloud,active:local?.active||cloud.active}:local||cloud);
+ ready=true;const saved=await upload();if(saved)st('✓ Cuenta conectada · ☁️ Sincronizado');return saved;
 }
 async function connected(user){
  u=user;q('loginBox').style.display='none';q('accountBox').style.display='block';q('accountEmail').textContent=user.email||'';
