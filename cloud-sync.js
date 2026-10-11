@@ -17,7 +17,7 @@ const ownerKey='masAllaFinanzasOwner';
 function protectAccount(user){const previous=localStorage.getItem(ownerKey);if(previous&&previous!==user.id){const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');backup(local,'other-account-'+previous);st('⚠️ Este dispositivo tiene información de otra cuenta. No se mezclaron datos. Contacta a soporte antes de continuar.');return false}return true}
 async function upload(){
  if(!u)return false;
- if(saving){pending=true;await saving;return pending?upload():!conflict;}
+ if(saving){pending=true;return await saving;}
  saving=performUpload();
  try{return await saving}finally{saving=null;if(pending){pending=false;setTimeout(()=>upload(),0)}}
 }
