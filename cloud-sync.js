@@ -47,9 +47,10 @@ async function performUpload(){
  // Conserva una copia local de ambos estados antes de cada escritura.
  backup(store,'before-upload');
  if(cloudHasDataSafe(cloud))backup(cloud,'cloud-before-upload');
- const {error}=await c.from('finance_profiles').upsert({user_id:u.id,data:store,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+ const snapshot=JSON.parse(JSON.stringify(store));
+ const {error}=await c.from('finance_profiles').upsert({user_id:u.id,data:snapshot,updated_at:new Date().toISOString()},{onConflict:'user_id'});
  if(error){console.error(error);st('Error al sincronizar: '+error.message);return false}
- cloudBaseline=JSON.parse(JSON.stringify(store));st('☁️ Sincronizado');return true;
+ cloudBaseline=snapshot;if(!sameData(store,snapshot)){pending=true;st('☁️ Guardando cambios pendientes…')}else st('☁️ Sincronizado');return true;
 }
 function cloudHasDataSafe(x){return localHasData(x)}
 window.addEventListener('finance-data-changed',()=>{if(u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,150)}});
@@ -57,7 +58,7 @@ window.addEventListener('online',()=>{if(u&&!conflict)upload()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&u&&!conflict){clearTimeout(timer);upload()}});
 async function sync(){
  st('Sincronizando…');
- if(!protectAccount(u))return false;
+ if(!protectAccount(u)){conflict=true;return false;}
  const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');
  const {data,error}=await c.from('finance_profiles').select('data,updated_at').eq('user_id',u.id).maybeSingle();
  if(error){st('Error: '+error.message);return false}
