@@ -99,8 +99,10 @@ async function signup(){
 async function forgot(){
  const email=q('loginEmail').value.trim();if(!email)return st('Escribe primero tu correo 💗');
  q('forgotButton').disabled=true;st('Enviando enlace para cambiar tu contraseña…');
- const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
- q('forgotButton').disabled=false;
+ let error;
+ try{({error}=await Promise.race([c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname}),new Promise((_,reject)=>setTimeout(()=>reject(new Error('La conexión tardó demasiado.')),15000))]));}
+ catch(e){st('No se pudo enviar el correo: '+(e.message||'Error de conexión'));return}
+ finally{q('forgotButton').disabled=false;}
  if(error){st('Error: '+error.message);return}
  st('Te enviamos un correo 💌 Ábrelo para crear una nueva contraseña.');
 }
