@@ -1,5 +1,5 @@
 (function(){
-let c,u,ready=false,timer;
+let c,u,ready=false,timer,cloudBaseline=null,conflict=false;
 const q=id=>document.getElementById(id);
 function st(t){const x=q('cloudStatus');if(x)x.textContent=t;const auth=q('authCloudStatus');if(auth)auth.textContent=t}
 function localHasData(x){return !!(x&&((x.cards&&x.cards.length)||(x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||(m.cards&&m.cards.length)||(m.checks&&m.checks.some(Boolean))||Object.values(m.budgets||{}).some(v=>Number(v)>0)))))}
@@ -7,11 +7,12 @@ function stamp(x){return Date.parse(x?.updatedAt||'')||0}
 function txCount(x){return Object.values(x?.months||{}).reduce((n,m)=>n+((m?.tx||[]).length),0)}
 function backup(x,label){if(!x||!localHasData(x))return;try{localStorage.setItem('masAllaBackup:'+label+':'+Date.now(),JSON.stringify(x))}catch(e){console.warn('No pude crear respaldo local',e)}}
 async function upload(){
- if(!u)return;
+ if(!u)return false;
+ if(conflict){st('⚠️ Hay datos diferentes en este teléfono y en la nube. No se sobrescribió nada. Contacta a soporte antes de cambiar de dispositivo.');return false;}
  // BLINDAJE ANTI-PERDIDA: antes de escribir, leer la nube y nunca permitir
  // que una copia con menos movimientos reemplace silenciosamente una más completa.
  const {data:remote,error:readError}=await c.from('finance_profiles').select('data,updated_at').eq('user_id',u.id).maybeSingle();
- if(readError){console.error(readError);st('Error al verificar respaldo: '+readError.message);return}
+ if(readError){console.error(readError);st('Error al verificar respaldo: '+readError.message);return false}
  const cloud=remote?.data||null;
  const localTx=txCount(store),cloudTx=txCount(cloud);
  // Un dispositivo vacio nunca puede borrar un historial existente en la nube.
@@ -20,20 +21,21 @@ async function upload(){
    store=cloud;
    localStorage.setItem('masAllaFinanzas',JSON.stringify(store));
    st('☁️ Historial recuperado y protegido');
-   return;
+   cloudBaseline=JSON.stringify(cloud);return true;
  }
  if(cloudHasDataSafe(cloud)&&cloudTx>localTx){
    backup(store,'blocked-local');backup(cloud,'protected-cloud');
    console.error('Sincronización bloqueada para evitar pérdida de datos',{localTx,cloudTx});
    st('⚠️ Protección activa: no se sobrescribió tu historial');
-   return;
+   conflict=true;return false;
  }
+ if(JSON.stringify(cloud)!==cloudBaseline){backup(store,'conflict-local');backup(cloud,'conflict-cloud');conflict=true;st('⚠️ Otro dispositivo cambió los datos. No se sobrescribió nada. Contacta a soporte.');return false}
  // Conserva una copia local de ambos estados antes de cada escritura.
  backup(store,'before-upload');
  if(cloudHasDataSafe(cloud))backup(cloud,'cloud-before-upload');
  const {error}=await c.from('finance_profiles').upsert({user_id:u.id,data:store,updated_at:new Date().toISOString()},{onConflict:'user_id'});
- if(error){console.error(error);st('Error al sincronizar: '+error.message);return}
- st('☁️ Sincronizado');
+ if(error){console.error(error);st('Error al sincronizar: '+error.message);return false}
+ cloudBaseline=JSON.stringify(store);st('☁️ Sincronizado');return true;
 }
 function cloudHasDataSafe(x){return localHasData(x)}
 window.addEventListener('finance-data-changed',()=>{if(u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,150)}});
@@ -41,17 +43,18 @@ async function sync(){
  st('Sincronizando…');
  const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');
  const {data,error}=await c.from('finance_profiles').select('data,updated_at').eq('user_id',u.id).maybeSingle();
- if(error){st('Error: '+error.message);return}
+ if(error){st('Error: '+error.message);return false}
  const cloud=data?.data||null;
+ cloudBaseline=JSON.stringify(cloud);conflict=false;
  const localHas=localHasData(local);
  const cloudHas=localHasData(cloud);
  const localTime=stamp(local),cloudTime=Math.max(stamp(cloud),Date.parse(data?.updated_at||'')||0);
  if(localHas&&cloudHas){
    backup(local,'local');backup(cloud,'cloud');
-   const localTx=txCount(local),cloudTx=txCount(cloud);
-   // Protección anti-pérdida: una copia con menos movimientos nunca reemplaza automáticamente una copia más completa.
-   // Si ambas tienen la misma cantidad, recién ahí usamos la fecha de actualización.
-   store=localTx!==cloudTx?(localTx>cloudTx?local:cloud):(cloudTime>=localTime?cloud:local);
+   if(JSON.stringify(local)!==JSON.stringify(cloud)){
+     conflict=true;store=local;
+     st('⚠️ Detectamos datos diferentes en el teléfono y la nube. Conservamos ambos respaldos y bloqueamos la sobrescritura. Contacta a soporte.');
+   }else{store=cloud;}
  }else if(localHas){
    backup(local,'local');store=local;
  }else if(cloudHas){
@@ -66,7 +69,7 @@ async function sync(){
  s=store.months[store.active];
  localStorage.setItem('masAllaFinanzas',JSON.stringify(store));
  if(q('monthSelect'))q('monthSelect').value=store.active;updateMonthlyMessage();updateCardSelect();render();
- ready=true;await upload();st('✓ Cuenta conectada · ☁️ Sincronizado');
+ ready=true;if(!conflict){const saved=await upload();if(saved)st('✓ Cuenta conectada · ☁️ Sincronizado');}return !conflict;
 }
 async function connected(user){
  u=user;q('loginBox').style.display='none';q('accountBox').style.display='block';q('accountEmail').textContent=user.email||'';
@@ -120,7 +123,7 @@ async function init(){
   if(!window.supabase||typeof SUPABASE_URL==='undefined'||typeof SUPABASE_KEY==='undefined'){st('⚠️ Sin conexión con respaldo');return}
   c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
   q('loginButton').onclick=login;q('signupButton').onclick=signup;q('forgotButton').onclick=forgot;q('savePasswordButton').onclick=saveNewPassword;
- const logout=async()=>{st('☁️ Guardando antes de salir…');try{if(u)await upload()}catch(e){console.error(e);st('No pude guardar. Intenta salir nuevamente.');return}ready=false;u=null;await c.auth.signOut();location.reload()};
+ const logout=async()=>{st('☁️ Guardando antes de salir…');try{if(u&&!(await upload())){st('⚠️ No se confirmó el respaldo. No se cerró sesión para proteger tus datos.');return}}catch(e){console.error(e);st('No pude guardar. Intenta salir nuevamente.');return}ready=false;u=null;await c.auth.signOut();location.reload()};
  q('logoutButton').onclick=logout;
  if(q('desktopLogout'))q('desktopLogout').onclick=logout;
  if(q('mobileLogout'))q('mobileLogout').onclick=logout;
