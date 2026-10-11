@@ -1,7 +1,7 @@
 (function(){
 let c,u,ready=false,timer;
 const q=id=>document.getElementById(id);
-function st(t){const x=q('cloudStatus');if(x)x.textContent=t}
+function st(t){const x=q('cloudStatus');if(x)x.textContent=t;const auth=q('authCloudStatus');if(auth)auth.textContent=t}
 function localHasData(x){return !!(x&&((x.cards&&x.cards.length)||(x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||(m.cards&&m.cards.length)||(m.checks&&m.checks.some(Boolean))||Object.values(m.budgets||{}).some(v=>Number(v)>0)))))}
 function stamp(x){return Date.parse(x?.updatedAt||'')||0}
 function txCount(x){return Object.values(x?.months||{}).reduce((n,m)=>n+((m?.tx||[]).length),0)}
