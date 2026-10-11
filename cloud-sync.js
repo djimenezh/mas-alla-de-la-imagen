@@ -77,8 +77,10 @@ async function login(){
  const email=q('loginEmail').value.trim(),password=q('loginPassword').value;
  if(!email||!password)return st('Escribe tu correo y contraseña 💗');
  st('Entrando…');q('loginButton').disabled=true;
- const {data,error}=await c.auth.signInWithPassword({email,password});
- q('loginButton').disabled=false;
+ let data,error;
+ try{({data,error}=await Promise.race([c.auth.signInWithPassword({email,password}),new Promise((_,reject)=>setTimeout(()=>reject(new Error('La conexión tardó demasiado.')),15000))]));}
+ catch(e){st('No se pudo ingresar: '+(e.message||'Error de conexión'));return}
+ finally{q('loginButton').disabled=false;}
  if(error){st(error.message==='Invalid login credentials'?'Correo o contraseña incorrectos. Si es tu primera vez, toca CREAR MI CUENTA.':'Error: '+error.message);return}
  if(data?.user)await connected(data.user);
 }
@@ -86,8 +88,10 @@ async function signup(){
  const n=q('loginName').value.trim(),email=q('loginEmail').value.trim(),password=q('loginPassword').value;
  if(!n||!email||password.length<6)return st('Escribe tu nombre, correo y una contraseña de al menos 6 caracteres 💗');
  localStorage.setItem('masAllaNombre',n);st('Creando tu cuenta…');q('signupButton').disabled=true;
- const {data,error}=await c.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname,data:{display_name:n}}});
- q('signupButton').disabled=false;
+ let data,error;
+ try{({data,error}=await Promise.race([c.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname,data:{display_name:n}}}),new Promise((_,reject)=>setTimeout(()=>reject(new Error('La conexión tardó demasiado. Intenta nuevamente.')),15000))]));}
+ catch(e){st('No se pudo crear la cuenta: '+(e.message||'Error de conexión'));return}
+ finally{q('signupButton').disabled=false;}
  if(error){st('Error: '+error.message);return}
  if(data?.session&&data?.user){await connected(data.user);return}
  st('Cuenta creada 💗 Revisa tu correo para confirmar tu email una sola vez. Después entrarás con tu contraseña.');
