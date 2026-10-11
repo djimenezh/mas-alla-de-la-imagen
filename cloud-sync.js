@@ -1,5 +1,5 @@
 (function(){
-let c,u,ready=false,timer,cloudBaseline=null,conflict=false;
+let c,u,ready=false,timer,cloudBaseline=null,conflict=false,saving=null,pending=false;
 const q=id=>document.getElementById(id);
 function st(t){const x=q('cloudStatus');if(x)x.textContent=t;const auth=q('authCloudStatus');if(auth)auth.textContent=t}
 function localHasData(x){return !!(x&&((x.cards&&x.cards.length)||(x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||(m.cards&&m.cards.length)||(m.checks&&m.checks.some(Boolean))||Object.values(m.budgets||{}).some(v=>Number(v)>0)))))}
@@ -13,8 +13,15 @@ function backup(x,label){if(!x||!localHasData(x))return;try{
 }catch(e){console.warn('No pude crear respaldo local',e)}}
 function comparable(x){if(!x)return null;const {updatedAt,...rest}=x;return JSON.stringify(rest)}
 function sameData(a,b){return comparable(a)===comparable(b)}
+const ownerKey='masAllaFinanzasOwner';
+function protectAccount(user){const previous=localStorage.getItem(ownerKey);if(previous&&previous!==user.id){const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');backup(local,'other-account-'+previous);st('⚠️ Este dispositivo tiene información de otra cuenta. No se mezclaron datos. Contacta a soporte antes de continuar.');return false}return true}
 async function upload(){
  if(!u)return false;
+ if(saving){pending=true;await saving;return pending?upload():!conflict;}
+ saving=performUpload();
+ try{return await saving}finally{saving=null;if(pending){pending=false;setTimeout(()=>upload(),0)}}
+}
+async function performUpload(){
  if(conflict){st('⚠️ Hay datos diferentes en este teléfono y en la nube. No se sobrescribió nada. Contacta a soporte antes de cambiar de dispositivo.');return false;}
  // BLINDAJE ANTI-PERDIDA: antes de escribir, leer la nube y nunca permitir
  // que una copia con menos movimientos reemplace silenciosamente una más completa.
@@ -36,7 +43,7 @@ async function upload(){
    st('⚠️ Protección activa: no se sobrescribió tu historial');
    conflict=true;return false;
  }
- if(comparable(cloud)!==comparable(cloudBaseline)){backup(store,'conflict-local');backup(cloud,'conflict-cloud');conflict=true;st('⚠️ Otro dispositivo cambió los datos. No se sobrescribió nada. Contacta a soporte.');return false}
+ if(!sameData(cloud,cloudBaseline)){backup(store,'conflict-local');backup(cloud,'conflict-cloud');conflict=true;st('⚠️ Otro dispositivo cambió los datos. No se sobrescribió nada. Contacta a soporte.');return false}
  // Conserva una copia local de ambos estados antes de cada escritura.
  backup(store,'before-upload');
  if(cloudHasDataSafe(cloud))backup(cloud,'cloud-before-upload');
@@ -46,8 +53,11 @@ async function upload(){
 }
 function cloudHasDataSafe(x){return localHasData(x)}
 window.addEventListener('finance-data-changed',()=>{if(u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,150)}});
+window.addEventListener('online',()=>{if(u&&!conflict)upload()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&u&&!conflict){clearTimeout(timer);upload()}});
 async function sync(){
  st('Sincronizando…');
+ if(!protectAccount(u))return false;
  const local=JSON.parse(localStorage.getItem('masAllaFinanzas')||'null');
  const {data,error}=await c.from('finance_profiles').select('data,updated_at').eq('user_id',u.id).maybeSingle();
  if(error){st('Error: '+error.message);return false}
@@ -55,6 +65,10 @@ async function sync(){
  cloudBaseline=cloud?JSON.parse(JSON.stringify(cloud)):null;conflict=false;
  const localHas=localHasData(local);
  const cloudHas=localHasData(cloud);
+ if(!localStorage.getItem(ownerKey)&&localHas&&cloudHas&&!sameData(local,cloud)){
+   backup(local,'unassigned-local');backup(cloud,'unassigned-cloud');conflict=true;
+   st('⚠️ Hay información local sin cuenta identificada y datos en la nube. Guardamos copias y no sobrescribimos nada.');return false;
+ }
  const localTime=stamp(local),cloudTime=Math.max(stamp(cloud),Date.parse(data?.updated_at||'')||0);
  if(localHas&&cloudHas){
    backup(local,'local');backup(cloud,'cloud');
@@ -76,7 +90,7 @@ async function sync(){
  s=store.months[store.active];
  localStorage.setItem('masAllaFinanzas',JSON.stringify(store));
  if(q('monthSelect'))q('monthSelect').value=store.active;updateMonthlyMessage();updateCardSelect();render();
- ready=true;if(!conflict){const saved=await upload();if(saved)st('✓ Cuenta conectada · ☁️ Sincronizado');}return !conflict;
+ ready=true;if(!conflict){const saved=await upload();if(saved){localStorage.setItem(ownerKey,u.id);st('✓ Cuenta conectada · ☁️ Sincronizado');}}return !conflict;
 }
 async function connected(user){
  u=user;q('loginBox').style.display='none';q('accountBox').style.display='block';q('accountEmail').textContent=user.email||'';
