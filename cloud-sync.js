@@ -5,7 +5,14 @@ function st(t){const x=q('cloudStatus');if(x)x.textContent=t;const auth=q('authC
 function localHasData(x){return !!(x&&((x.cards&&x.cards.length)||(x.months&&Object.values(x.months).some(m=>(m.tx&&m.tx.length)||(m.goals&&m.goals.length)||(m.cards&&m.cards.length)||(m.checks&&m.checks.some(Boolean))||Object.values(m.budgets||{}).some(v=>Number(v)>0)))))}
 function stamp(x){return Date.parse(x?.updatedAt||'')||0}
 function txCount(x){return Object.values(x?.months||{}).reduce((n,m)=>n+((m?.tx||[]).length),0)}
-function backup(x,label){if(!x||!localHasData(x))return;try{localStorage.setItem('masAllaBackup:'+label+':'+Date.now(),JSON.stringify(x))}catch(e){console.warn('No pude crear respaldo local',e)}}
+function backup(x,label){if(!x||!localHasData(x))return;try{
+ const key='masAllaBackup:'+label+':'+Date.now();localStorage.setItem(key,JSON.stringify(x));
+ const keys=Object.keys(localStorage).filter(k=>k.startsWith('masAllaBackup:'+label+':')).sort();
+ // Conserva las últimas 8 copias por tipo, sin tocar la copia activa.
+ keys.slice(0,-8).forEach(k=>localStorage.removeItem(k));
+}catch(e){console.warn('No pude crear respaldo local',e)}}
+function comparable(x){if(!x)return null;const {updatedAt,...rest}=x;return JSON.stringify(rest)}
+function sameData(a,b){return comparable(a)===comparable(b)}
 async function upload(){
  if(!u)return false;
  if(conflict){st('⚠️ Hay datos diferentes en este teléfono y en la nube. No se sobrescribió nada. Contacta a soporte antes de cambiar de dispositivo.');return false;}
@@ -21,7 +28,7 @@ async function upload(){
    store=cloud;
    localStorage.setItem('masAllaFinanzas',JSON.stringify(store));
    st('☁️ Historial recuperado y protegido');
-   cloudBaseline=JSON.stringify(cloud);return true;
+   cloudBaseline=cloud;return true;
  }
  if(cloudHasDataSafe(cloud)&&cloudTx>localTx){
    backup(store,'blocked-local');backup(cloud,'protected-cloud');
@@ -29,13 +36,13 @@ async function upload(){
    st('⚠️ Protección activa: no se sobrescribió tu historial');
    conflict=true;return false;
  }
- if(JSON.stringify(cloud)!==cloudBaseline){backup(store,'conflict-local');backup(cloud,'conflict-cloud');conflict=true;st('⚠️ Otro dispositivo cambió los datos. No se sobrescribió nada. Contacta a soporte.');return false}
+ if(comparable(cloud)!==comparable(cloudBaseline)){backup(store,'conflict-local');backup(cloud,'conflict-cloud');conflict=true;st('⚠️ Otro dispositivo cambió los datos. No se sobrescribió nada. Contacta a soporte.');return false}
  // Conserva una copia local de ambos estados antes de cada escritura.
  backup(store,'before-upload');
  if(cloudHasDataSafe(cloud))backup(cloud,'cloud-before-upload');
  const {error}=await c.from('finance_profiles').upsert({user_id:u.id,data:store,updated_at:new Date().toISOString()},{onConflict:'user_id'});
  if(error){console.error(error);st('Error al sincronizar: '+error.message);return false}
- cloudBaseline=JSON.stringify(store);st('☁️ Sincronizado');return true;
+ cloudBaseline=JSON.parse(JSON.stringify(store));st('☁️ Sincronizado');return true;
 }
 function cloudHasDataSafe(x){return localHasData(x)}
 window.addEventListener('finance-data-changed',()=>{if(u){st('☁️ Guardando…');clearTimeout(timer);timer=setTimeout(upload,150)}});
@@ -45,13 +52,13 @@ async function sync(){
  const {data,error}=await c.from('finance_profiles').select('data,updated_at').eq('user_id',u.id).maybeSingle();
  if(error){st('Error: '+error.message);return false}
  const cloud=data?.data||null;
- cloudBaseline=JSON.stringify(cloud);conflict=false;
+ cloudBaseline=cloud?JSON.parse(JSON.stringify(cloud)):null;conflict=false;
  const localHas=localHasData(local);
  const cloudHas=localHasData(cloud);
  const localTime=stamp(local),cloudTime=Math.max(stamp(cloud),Date.parse(data?.updated_at||'')||0);
  if(localHas&&cloudHas){
    backup(local,'local');backup(cloud,'cloud');
-   if(JSON.stringify(local)!==JSON.stringify(cloud)){
+   if(!sameData(local,cloud)){
      conflict=true;store=local;
      st('⚠️ Detectamos datos diferentes en el teléfono y la nube. Conservamos ambos respaldos y bloqueamos la sobrescritura. Contacta a soporte.');
    }else{store=cloud;}
