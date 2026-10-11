@@ -128,7 +128,7 @@ async function sync(){
  }else install(localHasData(cloud)?{...cloud,active:local?.active||cloud.active}:local||cloud);
  ready=true;const saved=await upload();if(saved)st('✓ Cuenta conectada · ☁️ Sincronizado');return saved;
 }
-async function connected(user){
+async function connected(user){ if(user.email){try{localStorage.setItem('masAllaLoginEmail',user.email)}catch(e){}}
  u=user;q('loginBox').style.display='none';q('accountBox').style.display='block';q('accountEmail').textContent=user.email||'';
  const n=user.user_metadata?.display_name||localStorage.getItem('masAllaNombre');if(n)document.querySelector('.hello').textContent='Hola '+n+' ♡';
  await sync();q('authGate').style.display='none';
@@ -178,8 +178,10 @@ async function saveNewPassword(){
 async function init(){
  try{
   if(!window.supabase||typeof SUPABASE_URL==='undefined'||typeof SUPABASE_KEY==='undefined'){st('⚠️ Sin conexión con respaldo');return}
-  c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-  q('loginButton').onclick=login;q('signupButton').onclick=signup;q('forgotButton').onclick=forgot;q('savePasswordButton').onclick=saveNewPassword;
+  c=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  try{const email=localStorage.getItem('masAllaLoginEmail');if(email&&!q('loginEmail').value)q('loginEmail').value=email}catch(e){}
+  q('loginBox').onsubmit=event=>{event.preventDefault();if(!q('loginButton').disabled)login();return false};
+  q('loginButton').onclick=null;q('signupButton').onclick=signup;q('forgotButton').onclick=forgot;q('savePasswordButton').onclick=saveNewPassword;
  const logout=async()=>{st('☁️ Guardando antes de salir…');try{if(u&&!(await upload())){st('⚠️ No se confirmó el respaldo. No se cerró sesión para proteger tus datos.');return}}catch(e){console.error(e);st('No pude guardar. Intenta salir nuevamente.');return}ready=false;u=null;await c.auth.signOut();location.reload()};
  q('logoutButton').onclick=logout;
  if(q('desktopLogout'))q('desktopLogout').onclick=logout;
